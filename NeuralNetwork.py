@@ -30,6 +30,7 @@ class NeuralNetwork:
     data = np.array(data[0:testRange])
     print(len(data))
     i = 0
+    random.shuffle(data)
     #Returning answers for the associated array inputs
     for x in data:
         answers.append(x[0])
@@ -100,6 +101,7 @@ class NeuralNetwork:
                             #weight and bias
         #Cost of the function
         prev = 2*(self.hlSig[len(self.hlSig)-1]-self.responseCleaner(self.answers[ind]))
+        
         for i in range(len(self.hlSig)-1,0,-1):
             
             DAoZn = self.sigdir(prev)   
@@ -140,37 +142,36 @@ class NeuralNetwork:
         x = len(self.weights)-1
         for i in range(len(self.weights)):
             
-            self.weights[i] -= np.multiply(self.sumCW[x],alpha)
+            self.weights[i] -= np.multiply(self.DCoW[x],alpha)
             x-=1
         y = len(self.weights)-1
         for i in range(len(self.weights)):
             
-            self.bias[i] -= np.multiply(self.sumCB[y],alpha)
+            self.bias[i] -= np.multiply(self.DCoB[y],alpha)
             y-=1
         self.sumCB.clear()
         self.sumCW.clear()
         
 
-    def train(self,iterations, alpha, batch): #Putting it all together
+    def train(self,iterations, alpha): #Putting it all together
         
        
         accuracy = []
         
         for i in range(0,iterations):
-            x = random.randint(0,self.testRange-1)
+            x = i#random.randint(0,self.testRange-1)
+            
             self.trainInput(x)
             self.forwardProp()
             
             self.backProp(x)
             #The batch collects the weights over a certain # of iterations, then applying them at the end
             #of the batch.
-            if(i%batch==0):
-                self.sumCW = self.DCoW #Zeroes out the changes
-                self.sumCB = self.DCoB 
-            elif(i%batch==batch-1):
-                self.update(alpha) #Updates changes
-            else:
-                self.summation(alpha) #Adds changes
+            
+           
+            self.update(alpha) #Updates changes
+
+                
             #At i%10==9,  
         
             
@@ -178,10 +179,14 @@ class NeuralNetwork:
                 print(self.hlSig[len(self.hlSig)-1])
                 accuracy.append(self.correct/1000)
                 print(self.correct/1000)
+                
                 self.correct = 0
+                print(f"Correct Guesses: {self.correctList}")
+                print(f"Incorrect Guesses: {self.incorrectList}")
+                self.correctList = [0]*len(self.correctList)
+                self.incorrectList = [0]*len(self.correctList)
             self.clear()
-        print(f"Correct Guesses: {self.correctList}")
-        print(f"Incorrect Guesses: {self.incorrectList}")
+            
         
     def updateInput(self, input):
         self.input = input
@@ -190,16 +195,7 @@ class NeuralNetwork:
         self.hlSig.clear()
         self.DCoW.clear()
         self.DCoB.clear()
-    def summation(self, alpha): #Is called throughout the length of the batch to add all of the weights and biases
-        
-        for i in range(0,len(self.weights)):
-            
-            self.sumCW[i] += np.multiply(self.DCoW[i],alpha)
-            
-        
-        for i in range(0,len(self.weights)):
-            
-            self.sumCB[i] += np.multiply(self.DCoB[i],alpha)
+    
             
     def trainInput(self, ind): # Changes values of Mnist from 0-255 to 0-1
         

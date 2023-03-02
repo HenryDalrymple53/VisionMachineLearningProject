@@ -21,9 +21,9 @@ gray = cv2.cvtColor(f, cv2.COLOR_RGB2GRAY)
 gVal = gray[centerX,centerY] # Gets the Color at the middle of the screen, helps with calibrating in different lighting
 print(gVal)
 #Initializing NeuralNetwork
-nn = NeuralNetwork([120,84])
+nn = NeuralNetwork([500])
 #Training fnn
-nn.train(60000,.025,2)
+nn.train(30000,.01)
 
 def box(contours):
     left = contours[0][0][0]
@@ -46,7 +46,7 @@ def box(contours):
 
 def translate(thresh): # Translates pixels from 0 or 255 to 0 or 1
     pixels = []
-    max = np.max(thresh)
+    max = max(thresh)
     for y in thresh:
         for x in y:
             if(x>=max-5): ## TODO: FIGURE OUT A WAY TO OPTIMIZE THIS VALUE
