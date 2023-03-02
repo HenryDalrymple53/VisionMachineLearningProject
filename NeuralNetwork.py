@@ -6,9 +6,9 @@ import random
 #Avoiding vanishing gradient while keeping outputs scaled between -1 and 1
 class NeuralNetwork:
     #Initializing variables
+    answers = []
     weights = []
     bias = []
-    answers = []
     input = []
     hlVals = []
     hlSig = []
@@ -17,7 +17,6 @@ class NeuralNetwork:
     DCoB = []
     sumCW = []
     sumCB = []
-    only123 = []
     options = []
     
     correct = 0
@@ -27,15 +26,14 @@ class NeuralNetwork:
     #Reading in Data and shuffling it, no partition between test and train sets, as train isn't perfectly
     #replicable for what I am working with
     data = pd.read_csv("C:\\PythonProjects\\DataFiles\\train.csv")
-    data = np.array(data[0:50000])
-    random.shuffle(data)
+    testRange = 30000
+    data = np.array(data[0:testRange])
+    print(len(data))
     i = 0
     #Returning answers for the associated array inputs
     for x in data:
         answers.append(x[0])
-        if(x[0]==1 or x[0]==2 or x[0]==3 or x[0]==4):
-            only123.append(i)
-        i+=1
+        
     
     outputLength = 10
     hiddenLayerLength = 0
@@ -69,16 +67,35 @@ class NeuralNetwork:
             x[count] = 0.01 if val < 0 else 1
             count+=1
         return x
+    def softmax(x):
+        """Compute softmax values for each sets of scores in x."""
+        e_x = np.exp(x - np.max(x))
+        return e_x / e_x.sum()
+    def softmax_grad(x): 
+        # Take the derivative of softmax element w.r.t the each logit which is usually Wi * X
+        # input s is softmax value of the original input x. 
+        # s.shape = (1, n) 
+        # i.e. s = np.array([0.3, 0.7]), x = np.array([0, 1])
+        # initialize the 2-D jacobian matrix.
+        jacobian_m = np.diag(x)
+        for i in range(len(jacobian_m)):
+            for j in range(len(jacobian_m)):
+                if i == j:
+                    jacobian_m[i][j] = x[i] * (1-x[i])
+                else: 
+                    jacobian_m[i][j] = -x[i]*x[j]
+        return jacobian_m
     def forwardProp(self):# Run through the application, starting at the input set, using matrix multiplication
-
+        end = len(self.weights)-1
         #Start at input, multiply through weights, end at output. Similar structure to top
         self.hlVals.append(self.weights[0].dot(self.input) + self.bias[0])
         self.hlSig.append(self.sigmoid(self.hlVals[0]))
-        for i in range(1,len(self.weights)):
+        for i in range(1,end):
             self.hlVals.append(self.weights[i].dot(self.hlSig[i-1]) + self.bias[i])
             self.hlSig.append(self.sigmoid(self.hlVals[i]))
             
-
+        self.hlVals.append(self.weights[end].dot(self.hlSig[end-1]) + self.bias[end])
+        self.hlSig.append(self.sigmoid(self.hlVals[end]))
     def backProp(self, ind):#Backpropigate through the values, finding gradient descent curves for each
                             #weight and bias
         #Cost of the function
@@ -121,12 +138,12 @@ class NeuralNetwork:
 
     def update(self, alpha): #This updates the values after the length of the batch.
         x = len(self.weights)-1
-        for i in range(0,len(self.weights)):
+        for i in range(len(self.weights)):
             
             self.weights[i] -= np.multiply(self.sumCW[x],alpha)
             x-=1
         y = len(self.weights)-1
-        for i in range(0,len(self.weights)):
+        for i in range(len(self.weights)):
             
             self.bias[i] -= np.multiply(self.sumCB[y],alpha)
             y-=1
@@ -134,38 +151,35 @@ class NeuralNetwork:
         self.sumCW.clear()
         
 
-    def train(self,iterations, alpha, epoch, batch): #Putting it all together
-        data = []
+    def train(self,iterations, alpha, batch): #Putting it all together
+        
        
         accuracy = []
-        for x in range(0,epoch):
-            print(f"Start Val: {self.only123[0:5]}")
-            print(self.weights[len(self.weights)-1])
-            for i in range(0,iterations):
-                
-                self.trainInput(i)
-                self.forwardProp()
-                
-                self.backProp(i)
-                #The batch collects the weights over a certain # of iterations, then applying them at the end
-                #of the batch.
-                if(i%batch==0):
-                    self.sumCW = self.DCoW #Zeroes out the changes
-                    self.sumCB = self.DCoB 
-                elif(i%batch==batch-1):
-                    self.update(alpha) #Updates changes
-                else:
-                    self.summation(alpha) #Adds changes
-                #At i%10==9,  
+        
+        for i in range(0,iterations):
+            x = random.randint(0,self.testRange-1)
+            self.trainInput(x)
+            self.forwardProp()
             
-                self.clear()
-                if(i%1000==0):
-                    
-                    accuracy.append(self.correct/1000)
-                    print(self.correct/1000)
-                    self.correct = 0
-            print(f"Next Epoch ----------------------")
-            print(self.weights[len(self.weights)-1])
+            self.backProp(x)
+            #The batch collects the weights over a certain # of iterations, then applying them at the end
+            #of the batch.
+            if(i%batch==0):
+                self.sumCW = self.DCoW #Zeroes out the changes
+                self.sumCB = self.DCoB 
+            elif(i%batch==batch-1):
+                self.update(alpha) #Updates changes
+            else:
+                self.summation(alpha) #Adds changes
+            #At i%10==9,  
+        
+            
+            if(i%1000==0):
+                print(self.hlSig[len(self.hlSig)-1])
+                accuracy.append(self.correct/1000)
+                print(self.correct/1000)
+                self.correct = 0
+            self.clear()
         print(f"Correct Guesses: {self.correctList}")
         print(f"Incorrect Guesses: {self.incorrectList}")
         
@@ -196,7 +210,7 @@ class NeuralNetwork:
                 self.input[i]=1
             else :
                 self.input[i]=0
-    def guessNum(self, input): #Meant to be used with camera information
+    def guessNum(self): #Meant to be used with camera information
         self.forwardProp()
         guess = np.argmax(self.hlSig[len(self.hlSig)-1])
         print(guess)
